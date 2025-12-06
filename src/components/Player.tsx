@@ -60,7 +60,12 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     isBasketballActive,
     saveGame,
     loadGame,
-    checkAllMinigamesPlayed,
+    spawnedBoxes,
+    collectedBoxes,
+    collectRewardBox,
+    setNearRewardBox,
+    nearRewardBox,
+    inventory,
   } = useGameStore();
 
   // ==========================================================================
@@ -313,6 +318,49 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     }
     setNearPortal(foundPortal);
 
+    // REWARD BOX DETECTION (Main Lobby Only)
+    // ------------------------------------------------------------------------
+    let foundRewardBox: 'minigame1' | 'minigame2' | 'minigame3' | null = null;
+    
+    if (currentRoom === 'main' && roomConfig.portals) {
+      for (const portal of roomConfig.portals) {
+        const minigameId = portal.targetRoom as 'minigame1' | 'minigame2' | 'minigame3';
+        
+        // Check if box exists and not collected
+        if (spawnedBoxes[minigameId] && !collectedBoxes[minigameId]) {
+          // Calculate box position
+          const boxPosition = new THREE.Vector3(
+            portal.position.x,
+            portal.position.y - 0.5,
+            portal.position.z
+          );
+          const direction = new THREE.Vector3(
+            -portal.position.x,
+            0,
+            -portal.position.z
+          ).normalize();
+          boxPosition.add(direction.multiplyScalar(1.5));
+          
+          // Check distance to box
+          const distance = camera.position.distanceTo(boxPosition);
+          if (distance < 2.0) {
+            foundRewardBox = minigameId;
+            break;
+          }
+        }
+      }
+    }
+    
+    setNearRewardBox(foundRewardBox);
+
+    // REWARD BOX INTERACTION (Priority over portal)
+    // ------------------------------------------------------------------------
+    if (keys.current.interact && nearRewardBox) {
+      resetInteract();
+      collectRewardBox(nearRewardBox);
+      return;
+    }
+
     // PORTAL INTERACTION
     // ------------------------------------------------------------------------
     if (keys.current.interact && nearPortal) {
@@ -320,9 +368,14 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
       
       // Check if trying to enter minigame4 (empty room)
       if (nearPortal.targetRoom === 'minigame4') {
-        // Only allow entry if all minigames are played
-        if (!checkAllMinigamesPlayed()) {
-          console.log('You must play all minigames to enter the empty room.');
+        // Only allow entry if all 3 reward boxes are collected
+        const hasAllBoxes = 
+          inventory.some(item => item.minigameId === 'minigame1') &&
+          inventory.some(item => item.minigameId === 'minigame2') &&
+          inventory.some(item => item.minigameId === 'minigame3');
+        
+        if (!hasAllBoxes) {
+          console.log('You must collect all 3 reward boxes to enter the empty room.');
           return;
         }
       }

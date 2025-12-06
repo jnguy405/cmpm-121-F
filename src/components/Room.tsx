@@ -1,5 +1,6 @@
 import { useEffect, useRef, useMemo, type RefObject } from 'react';
 import { useTheme } from '../hooks/useTheme';
+import { useGameStore } from '../hooks/useGameStore';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import type { RoomConfig } from '../types';
@@ -42,6 +43,9 @@ export function Room({
   
   // THEME
   const { colors } = useTheme();
+  
+  // GAME STORE
+  const { spawnedBoxes, collectedBoxes } = useGameStore();
   
   // THEME-BASED COLORS (Memoize to prevent unnecessary re-renders)
   const themeFloorColor = useMemo(
@@ -241,6 +245,38 @@ export function Room({
       {portals.map((portal) => (
         <Portal key={portal.id} portal={portal} />
       ))}
+
+      {/* REWARD BOXES (Main Lobby Only) */}
+      {config.id === 'main' && portals.map((portal) => {
+        const minigameId = portal.targetRoom as 'minigame1' | 'minigame2' | 'minigame3';
+        
+        // Only show box if spawned and not collected
+        if (!spawnedBoxes[minigameId] || collectedBoxes[minigameId]) {
+          return null;
+        }
+        
+        // Calculate box position (in front of portal, slightly lower)
+        const boxPosition = new THREE.Vector3(
+          portal.position.x,
+          portal.position.y - 0.5,
+          portal.position.z
+        );
+        
+        // Move box forward from portal (towards center of room)
+        const direction = new THREE.Vector3(
+          -portal.position.x,
+          0,
+          -portal.position.z
+        ).normalize();
+        boxPosition.add(direction.multiplyScalar(1.5));
+        
+        return (
+          <mesh key={`reward-box-${portal.id}`} position={[boxPosition.x, boxPosition.y, boxPosition.z]}>
+            <boxGeometry args={[0.5, 0.5, 0.5]} />
+            <meshBasicMaterial color={portal.color} />
+          </mesh>
+        );
+      })}
 
       {/* =====================================================================
          MINIGAME ZONES

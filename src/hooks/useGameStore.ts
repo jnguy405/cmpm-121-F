@@ -36,6 +36,7 @@ interface GameStore {
   currentRoom: RoomType;
   isPlaying: boolean;
   nearPortal: Portal | null;
+  nearRewardBox: 'minigame1' | 'minigame2' | 'minigame3' | null;
   isLocked: boolean;
   playerTeleportTarget: { x: number; y: number; z: number } | null;
   
@@ -48,7 +49,25 @@ interface GameStore {
     minigame2: boolean;
     minigame3: boolean;
   };
-  isGameCleared: boolean;
+
+  // INVENTORY STATE
+  inventory: Array<{
+    id: string;
+    minigameId: 'minigame1' | 'minigame2' | 'minigame3' | 'minigame4';
+    color: string;
+  }>;
+
+  // REWARD BOX STATE
+  spawnedBoxes: {
+    minigame1: boolean;
+    minigame2: boolean;
+    minigame3: boolean;
+  };
+  collectedBoxes: {
+    minigame1: boolean;
+    minigame2: boolean;
+    minigame3: boolean;
+  };
 
   // SAVE SYSTEM STATE
   currentSaveId: string | null;
@@ -117,6 +136,7 @@ interface GameStore {
   setCurrentRoom: (room: RoomType) => void;
   setIsPlaying: (playing: boolean) => void;
   setNearPortal: (portal: Portal | null) => void;
+  setNearRewardBox: (minigameId: 'minigame1' | 'minigame2' | 'minigame3' | null) => void;
   setIsLocked: (locked: boolean) => void;
   teleportToRoom: (room: RoomType) => void;
   
@@ -175,8 +195,19 @@ interface GameStore {
   // MINIGAME COMPLETION ACTIONS
   // ========================================================================
   markMinigamePlayed: (minigameId: 'minigame1' | 'minigame2' | 'minigame3') => void;
-  checkAllMinigamesPlayed: () => boolean;
   resetGame: () => void;
+  
+  // ========================================================================
+  // INVENTORY ACTIONS
+  // ========================================================================
+  addInventoryItem: (minigameId: 'minigame1' | 'minigame2' | 'minigame3' | 'minigame4') => void;
+  clearInventory: () => void;
+  
+  // ========================================================================
+  // REWARD BOX ACTIONS
+  // ========================================================================
+  spawnRewardBox: (minigameId: 'minigame1' | 'minigame2' | 'minigame3') => void;
+  collectRewardBox: (minigameId: 'minigame1' | 'minigame2' | 'minigame3') => void;
 }
 
 // ============================================================================
@@ -187,14 +218,15 @@ export const useGameStore = create<GameStore>()(
     (set, get) => ({
       // INITIAL STATE
       // ------------------------------------------------------------------------
-      
+
       // CORE GAME STATE
       currentRoom: 'main',
       isPlaying: false,
       nearPortal: null,
+      nearRewardBox: null,
       isLocked: false,
       playerTeleportTarget: null,
-      
+
       // ECONOMY STATE
       money: 100,
 
@@ -204,7 +236,21 @@ export const useGameStore = create<GameStore>()(
         minigame2: false,
         minigame3: false,
       },
-      isGameCleared: false,
+
+      // INVENTORY STATE
+      inventory: [],
+
+      // REWARD BOX STATE
+      spawnedBoxes: {
+        minigame1: false,
+        minigame2: false,
+        minigame3: false,
+      },
+      collectedBoxes: {
+        minigame1: false,
+        minigame2: false,
+        minigame3: false,
+      },
 
       // SAVE SYSTEM STATE
       currentSaveId: null,
@@ -212,7 +258,7 @@ export const useGameStore = create<GameStore>()(
       autoSaveInterval: 300,
       lastAutoSaveTime: 0,
       saveSlots: [],
-      
+
       // DICE GAME STATE
       isNearMiniGame: false,
       isMiniGameActive: false,
@@ -223,7 +269,7 @@ export const useGameStore = create<GameStore>()(
       betAmount: 0,
       lastBetForResult: null,
       lastBetAmountForResult: 0,
-      
+
       // BASKETBALL GAME STATE
       isNearBasketball: false,
       isBasketballActive: false,
@@ -235,7 +281,7 @@ export const useGameStore = create<GameStore>()(
       basketballBetAmount: 0,
       basketballBetPlaced: false,
       lastBasketballResult: null,
-      
+
       // SIMON GAME STATE
       isNearSimon: false,
       isSimonActive: false,
@@ -253,14 +299,14 @@ export const useGameStore = create<GameStore>()(
       // ========================================================================
       // CORE GAME ACTIONS
       // ========================================================================
-      
+
       // SAVE SYSTEM ACTIONS
       // ------------------------------------------------------------------------
       saveGame: (position, mode = 'manual', slotName?: string) => {
         const state = get();
         const timestamp = Date.now();
         const saveId = `${mode}_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
-        
+
         const saveData: SaveData = {
           id: saveId,
           name: slotName || state.getSaveSlotName(mode),
@@ -270,44 +316,39 @@ export const useGameStore = create<GameStore>()(
           position,
           lastAutoSave: mode === 'auto' ? timestamp : state.lastAutoSaveTime,
         };
-        
+
         try {
-          // Save to localStorage
           localStorage.setItem(`mini3d_save_${saveId}`, JSON.stringify(saveData));
-          
-          // Update save slot list
+
           const existingIndex = state.saveSlots.findIndex(slot => slot.id === saveId);
           const newSlot: SaveSlot = {
             id: saveId,
             name: saveData.name,
             timestamp,
           };
-          
+
           let updatedSlots = [...state.saveSlots];
           if (existingIndex >= 0) {
             updatedSlots[existingIndex] = newSlot;
           } else {
             updatedSlots.push(newSlot);
-            // Keep only last 20 saves
             if (updatedSlots.length > 20) {
               updatedSlots = updatedSlots.slice(-20);
             }
           }
-          
-          // Sort by timestamp (newest first)
+
           updatedSlots.sort((a, b) => b.timestamp - a.timestamp);
-          
-          set({ 
+
+          set({
             currentSaveId: saveId,
             saveSlots: updatedSlots,
             lastAutoSaveTime: mode === 'auto' ? timestamp : state.lastAutoSaveTime,
           });
-          
-          // If quick save, also store as last quick save
+
           if (mode === 'quick') {
             localStorage.setItem('mini3d_last_quicksave', saveId);
           }
-          
+
           console.log(`Game saved (${mode}): ${saveData.name}`);
           return saveId;
         } catch (error) {
@@ -315,14 +356,14 @@ export const useGameStore = create<GameStore>()(
           return null;
         }
       },
-      
+
       loadGame: (saveId) => {
         try {
           const raw = localStorage.getItem(`mini3d_save_${saveId}`);
           if (!raw) return false;
-          
+
           const saveData = JSON.parse(raw) as SaveData;
-          
+
           set({
             currentSaveId: saveId,
             currentRoom: saveData.currentRoom,
@@ -345,7 +386,7 @@ export const useGameStore = create<GameStore>()(
             betAmount: 0,
             shouldTriggerRoll: false,
           });
-          
+
           console.log(`Game loaded: ${saveData.name}`);
           return true;
         } catch (error) {
@@ -353,47 +394,44 @@ export const useGameStore = create<GameStore>()(
           return false;
         }
       },
-      
+
       quickSave: () => {
         const state = get();
         const roomConfig = ROOM_CONFIGS[state.currentRoom];
-        const spawnPos = roomConfig.spawnPosition || { x: 0, y: PLAYER_CONFIG.spawnHeight, z: 0 };
-        const position = state.playerTeleportTarget || { 
-          x: spawnPos.x, 
-          y: spawnPos.y, 
-          z: spawnPos.z 
+        const spawnPos = roomConfig?.spawnPosition || { x: 0, y: PLAYER_CONFIG.spawnHeight, z: 0 };
+        const position = state.playerTeleportTarget || {
+          x: spawnPos.x,
+          y: spawnPos.y,
+          z: spawnPos.z
         };
-        
         return state.saveGame(position, 'quick');
       },
-      
+
       deleteSave: (saveId) => {
         try {
           const state = get();
           localStorage.removeItem(`mini3d_save_${saveId}`);
-          
-          // Remove from save slots
+
           const updatedSlots = state.saveSlots.filter(slot => slot.id !== saveId);
-          
+
           set({ saveSlots: updatedSlots });
-          
-          // If deleting current save, clear currentSaveId
+
           if (state.currentSaveId === saveId) {
             set({ currentSaveId: null });
           }
-          
+
           return true;
         } catch (error) {
           console.error('Failed to delete save:', error);
           return false;
         }
       },
-      
+
       getSaveSlotName: (mode) => {
         const now = new Date();
         const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const dateStr = now.toLocaleDateString();
-        
+
         switch (mode) {
           case 'auto':
             return `Auto Save (${timeStr})`;
@@ -404,46 +442,45 @@ export const useGameStore = create<GameStore>()(
             return `Manual Save (${dateStr} ${timeStr})`;
         }
       },
-      
+
       listSaves: () => {
         const state = get();
         return state.saveSlots;
       },
-      
+
       clearAllSaves: () => {
         try {
-          // Remove all save data from localStorage
           const state = get();
           state.saveSlots.forEach(slot => {
             localStorage.removeItem(`mini3d_save_${slot.id}`);
           });
-          
+
           set({
             saveSlots: [],
             currentSaveId: null,
             lastAutoSaveTime: 0,
           });
-          
+
           return true;
         } catch (error) {
           console.error('Failed to clear saves:', error);
           return false;
         }
       },
-      
+
       toggleAutoSave: () => {
         set((state) => ({ autoSaveEnabled: !state.autoSaveEnabled }));
       },
-      
+
       setAutoSaveInterval: (seconds) => {
-        set({ autoSaveInterval: Math.max(30, Math.min(3600, seconds)) }); // 30s to 1h
+        set({ autoSaveInterval: Math.max(30, Math.min(3600, seconds)) });
       },
-      
+
       checkAutoSave: () => {
         const state = get();
         const now = Date.now();
-        const timeSinceLastAutoSave = (now - state.lastAutoSaveTime) / 1000; // in seconds
-        
+        const timeSinceLastAutoSave = (now - state.lastAutoSaveTime) / 1000;
+
         if (state.autoSaveEnabled && timeSinceLastAutoSave >= state.autoSaveInterval) {
           console.log('Auto-save triggered');
           return true;
@@ -455,13 +492,13 @@ export const useGameStore = create<GameStore>()(
       // ------------------------------------------------------------------------
       setCurrentRoom: (room) => {
         const config = ROOM_CONFIGS[room];
-        const spawn = config.spawnPosition;
+        const spawn = config?.spawnPosition;
         const position = spawn
           ? { x: spawn.x, y: spawn.y, z: spawn.z }
           : { x: 0, y: PLAYER_CONFIG.spawnHeight, z: 0 };
 
-        set({ 
-          currentRoom: room, 
+        set({
+          currentRoom: room,
           diceResult: null,
           isNearMiniGame: false,
           isNearBasketball: false,
@@ -470,23 +507,23 @@ export const useGameStore = create<GameStore>()(
           shouldTriggerRoll: false,
         });
 
-        // Auto-save when changing rooms
         get().saveGame(position, 'auto');
       },
-      
+
       setIsPlaying: (playing) => set({ isPlaying: playing }),
       setNearPortal: (portal) => set({ nearPortal: portal }),
+      setNearRewardBox: (minigameId) => set({ nearRewardBox: minigameId }),
       setIsLocked: (locked) => set({ isLocked: locked }),
-      
+
       teleportToRoom: (room) => {
         const config = ROOM_CONFIGS[room];
-        const spawn = config.spawnPosition;
+        const spawn = config?.spawnPosition;
         const position = spawn
           ? { x: spawn.x, y: spawn.y, z: spawn.z }
           : { x: 0, y: PLAYER_CONFIG.spawnHeight, z: 0 };
 
-        set({ 
-          currentRoom: room, 
+        set({
+          currentRoom: room,
           nearPortal: null,
           isNearMiniGame: false,
           isMiniGameActive: false,
@@ -506,21 +543,20 @@ export const useGameStore = create<GameStore>()(
           shouldTriggerRoll: false,
         });
 
-        // Auto-save when teleporting
         get().saveGame(position, 'auto');
       },
-      
+
       // ========================================================================
       // ECONOMY ACTIONS
       // ========================================================================
       setMoney: (amount) => {
         set({ money: Math.max(0, amount) });
       },
-      
+
       addMoney: (amount) => {
         set((state) => ({ money: state.money + amount }));
       },
-      
+
       removeMoney: (amount) => {
         const state = get();
         if (state.money >= amount) {
@@ -529,7 +565,7 @@ export const useGameStore = create<GameStore>()(
         }
         return false;
       },
-      
+
       // ========================================================================
       // DICE GAME ACTIONS
       // ========================================================================
@@ -537,35 +573,35 @@ export const useGameStore = create<GameStore>()(
       setIsMiniGameActive: (active) => set({ isMiniGameActive: active }),
       setDiceResult: (result) => set({ diceResult: result }),
       setIsRolling: (rolling) => set({ isRolling: rolling }),
-      
+
       triggerRoll: () => {
         const state = get();
         if (state.isRolling || state.currentBet === null || state.betAmount <= 0) return;
-        set({ 
+        set({
           shouldTriggerRoll: true,
           lastBetForResult: state.currentBet,
           lastBetAmountForResult: state.betAmount,
         });
       },
-      
+
       clearTriggerRoll: () => set({ shouldTriggerRoll: false }),
-      
+
       setCurrentBet: (bet) => set({ currentBet: bet }),
       setBetAmount: (amount) => set({ betAmount: amount }),
-      
+
       placeBet: (predictedSum, amount) => {
         const state = get();
         if (state.money < amount || amount <= 0) return false;
         if (predictedSum < 2 || predictedSum > 12) return false;
-        
-        set({ 
+
+        set({
           money: state.money - amount,
           currentBet: predictedSum,
           betAmount: amount,
         });
         return true;
       },
-      
+
       // ========================================================================
       // BASKETBALL GAME ACTIONS
       // ========================================================================
@@ -576,7 +612,7 @@ export const useGameStore = create<GameStore>()(
       setIsChargingThrow: (charging) => set({ isChargingThrow: charging }),
       incrementBasketballScore: () => set((state) => ({ basketballScore: state.basketballScore + 1 })),
       incrementBasketballAttempts: () => set((state) => ({ basketballAttempts: state.basketballAttempts + 1 })),
-      
+
       resetBasketballGame: () => set({
         basketballScore: 0,
         basketballAttempts: 0,
@@ -587,11 +623,11 @@ export const useGameStore = create<GameStore>()(
         basketballBetPlaced: false,
         lastBasketballResult: null,
       }),
-      
+
       placeBasketballBet: (amount) => {
         const state = get();
         if (state.money < amount || amount <= 0) return false;
-        set({ 
+        set({
           money: state.money - amount,
           basketballBetAmount: amount,
           basketballBetPlaced: true,
@@ -599,36 +635,36 @@ export const useGameStore = create<GameStore>()(
         });
         return true;
       },
-      
+
       resolveBasketballBet: (scored) => {
         const state = get();
         if (!state.basketballBetPlaced) return;
-        
+
         if (scored) {
-          set({ 
+          set({
             money: state.money + state.basketballBetAmount * 2,
             lastBasketballResult: 'win',
             basketballBetPlaced: false,
           });
         } else {
-          set({ 
+          set({
             lastBasketballResult: 'lose',
             basketballBetPlaced: false,
           });
         }
       },
-      
+
       setPlayerTeleportTarget: (target) => set({ playerTeleportTarget: target }),
-      
+
       enterBasketballZone: () => {
-        set({ 
+        set({
           playerTeleportTarget: { x: 0, y: 1.8, z: 1.5 },
           isBasketballActive: true,
         });
       },
-      
+
       exitBasketballZone: () => {
-        set({ 
+        set({
           playerTeleportTarget: { x: 0, y: 1.8, z: 7 },
           isBasketballActive: false,
           isHoldingBall: false,
@@ -639,20 +675,19 @@ export const useGameStore = create<GameStore>()(
           lastBasketballResult: null,
         });
       },
-      
+
       // ========================================================================
       // SIMON GAME ACTIONS
       // ========================================================================
       setIsNearSimon: (near) => set({ isNearSimon: near }),
       setIsSimonActive: (active) => set({ isSimonActive: active }),
-      
+
       startSimonGame: (betAmount) => {
         const state = get();
         if (state.money < betAmount || betAmount <= 0) return false;
-        
-        // Mark minigame3 as played
+
         state.markMinigamePlayed('minigame3');
-        
+
         set({
           money: state.money - betAmount,
           simonBetAmount: betAmount,
@@ -665,7 +700,7 @@ export const useGameStore = create<GameStore>()(
         });
         return true;
       },
-      
+
       exitSimonGame: () => set({
         isSimonActive: false,
         simonBetPlaced: false,
@@ -678,9 +713,9 @@ export const useGameStore = create<GameStore>()(
         simonIsGameOver: false,
         simonGameMessage: '',
       }),
-      
+
       addToSimonPattern: () => {
-        const newButton = Math.floor(Math.random() * 5); // 0~4 (5 buttons)
+        const newButton = Math.floor(Math.random() * 5);
         set((state) => ({
           simonPattern: [...state.simonPattern, newButton],
           simonPlayerPattern: [],
@@ -689,15 +724,14 @@ export const useGameStore = create<GameStore>()(
           simonGameMessage: 'Memorize the pattern!',
         }));
       },
-      
+
       simonButtonClick: (button) => {
         const state = get();
         if (!state.simonCanClick || state.simonIsShowingPattern || state.simonIsGameOver) return;
-        
+
         const newPlayerPattern = [...state.simonPlayerPattern, button];
         const currentIndex = newPlayerPattern.length - 1;
-        
-        // Wrong button
+
         if (state.simonPattern[currentIndex] !== button) {
           set({
             simonPlayerPattern: newPlayerPattern,
@@ -707,12 +741,11 @@ export const useGameStore = create<GameStore>()(
           });
           return;
         }
-        
-        // Pattern completed
+
         if (newPlayerPattern.length === state.simonPattern.length) {
           const newScore = state.simonScore + 1;
           const reward = state.simonBetAmount * newScore;
-          
+
           if (newScore >= 10) {
             set({
               simonPlayerPattern: newPlayerPattern,
@@ -735,12 +768,12 @@ export const useGameStore = create<GameStore>()(
           set({ simonPlayerPattern: newPlayerPattern });
         }
       },
-      
+
       setSimonLitButton: (button) => set({ simonLitButton: button }),
       setSimonShowingPattern: (showing) => set({ simonIsShowingPattern: showing }),
       setSimonCanClick: (canClick) => set({ simonCanClick: canClick }),
       setSimonGameMessage: (message) => set({ simonGameMessage: message }),
-      
+
       // ========================================================================
       // MINIGAME COMPLETION ACTIONS
       // ========================================================================
@@ -750,34 +783,24 @@ export const useGameStore = create<GameStore>()(
             ...state.playedMinigames,
             [minigameId]: true,
           };
-          
-          // Check if all minigames are played
-          const allPlayed = 
-            newPlayedMinigames.minigame1 && 
-            newPlayedMinigames.minigame2 && 
-            newPlayedMinigames.minigame3;
-          
+
+          // Only call spawnRewardBox if it's a lobby box
+          if (typeof state.spawnRewardBox === "function") {
+            state.spawnRewardBox(minigameId);
+          }
+
           return {
             playedMinigames: newPlayedMinigames,
-            isGameCleared: allPlayed,
           };
         });
       },
-      
-      checkAllMinigamesPlayed: () => {
-        const state = get();
-        return (
-          state.playedMinigames.minigame1 &&
-          state.playedMinigames.minigame2 &&
-          state.playedMinigames.minigame3
-        );
-      },
-      
+
       resetGame: () => {
         set({
           currentRoom: 'main',
           isPlaying: false,
           nearPortal: null,
+          nearRewardBox: null,
           isLocked: false,
           playerTeleportTarget: null,
           money: 100,
@@ -786,7 +809,6 @@ export const useGameStore = create<GameStore>()(
             minigame2: false,
             minigame3: false,
           },
-          isGameCleared: false,
           isNearMiniGame: false,
           isMiniGameActive: false,
           diceResult: null,
@@ -818,7 +840,74 @@ export const useGameStore = create<GameStore>()(
           simonCanClick: false,
           simonLitButton: null,
           simonIsGameOver: false,
+          inventory: [],
+          spawnedBoxes: {
+            minigame1: false,
+            minigame2: false,
+            minigame3: false,
+          },
+          collectedBoxes: {
+            minigame1: false,
+            minigame2: false,
+            minigame3: false,
+          },
         });
+      },
+
+      // ========================================================================
+      // INVENTORY ACTIONS
+      // ========================================================================
+      addInventoryItem: (minigameId) => {
+        const state = get();
+        if (state.inventory.length >= 3) return;
+        if (state.inventory.some(item => item.minigameId === minigameId)) return;
+
+        const colors: Record<'minigame1' | 'minigame2' | 'minigame3' | 'minigame4', string> = {
+          minigame1: '#ff6b6b',
+          minigame2: '#4ecdc4',
+          minigame3: '#ffe66d',
+          minigame4: '#a855f7',
+        };
+
+        const newItem = {
+          id: `${minigameId}_${Date.now()}`,
+          minigameId,
+          color: colors[minigameId],
+        };
+
+        set((state) => ({
+          inventory: [...state.inventory, newItem],
+        }));
+      },
+
+      clearInventory: () => {
+        set({ inventory: [] });
+      },
+
+      // ========================================================================
+      // REWARD BOX ACTIONS
+      // ========================================================================
+      spawnRewardBox: (minigameId) => {
+        set((state) => ({
+          spawnedBoxes: {
+            ...state.spawnedBoxes,
+            [minigameId]: true,
+          },
+        }));
+      },
+
+      collectRewardBox: (minigameId) => {
+        const state = get();
+        if (!state.spawnedBoxes[minigameId] || state.collectedBoxes[minigameId]) return;
+        if (typeof state.addInventoryItem === 'function') {
+          state.addInventoryItem(minigameId);
+        }
+        set((state) => ({
+          collectedBoxes: {
+            ...state.collectedBoxes,
+            [minigameId]: true,
+          },
+        }));
       },
     }),
     {

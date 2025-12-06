@@ -236,7 +236,7 @@ const CourtMarkings = React.memo(({
 }) => (
   <>
     {/* Pickup Circle */}
-    <mesh position={[position[0], position[1] + 0.01, position[2] + zoneSize[2] / 2 - 1.5]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh position={[position[0], position[1] + 0.02, position[2] + zoneSize[2] / 2 - 1.5]} rotation={[-Math.PI / 2, 0, 0]}>
       <ringGeometry args={[0.3, 0.4, 32]} />
       <meshBasicMaterial 
         color={isDarkMode ? "#88ff88" : "#00ff00"}
@@ -256,7 +256,7 @@ const CourtMarkings = React.memo(({
     </mesh>
 
     {/* Free-throw Line */}
-    <mesh position={[hoopPosition[0], position[1] + 0.01, hoopPosition[2] + 7]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh position={[hoopPosition[0], position[1] + 0.02, hoopPosition[2] + 7]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[3.6, 0.1]} />
       <meshBasicMaterial 
         color={isDarkMode ? "#cccccc" : "#ffffff"}

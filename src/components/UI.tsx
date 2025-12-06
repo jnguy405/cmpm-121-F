@@ -50,7 +50,8 @@ export function UI() {
     startSimonGame,
     exitSimonGame,
     resetGame,
-    isGameCleared,
+    inventory,
+    nearRewardBox,
   } = useGameStore();
   
   // LOCAL STATE
@@ -189,6 +190,29 @@ export function UI() {
         💰 {money.toLocaleString()}
       </div>
 
+      {/* INVENTORY */}
+      <div className="inventory">
+        <div className="inventory-title">Inventory</div>
+        <div className="inventory-slots">
+          {[0, 1, 2].map((index) => {
+            const item = inventory[index];
+            return (
+              <div key={index} className="inventory-slot">
+                {item ? (
+                  <div 
+                    className="inventory-item"
+                    style={{ backgroundColor: item.color }}
+                    title={`${item.minigameId}`}
+                  />
+                ) : (
+                  <div className="inventory-slot-empty" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* =====================================================================
          GENERAL INTERACTION HINTS
       ===================================================================== */}
@@ -198,20 +222,38 @@ export function UI() {
         </div>
       )}
 
-      {isLocked && nearPortal && !isNearMiniGame && !isMiniGameActive && (
+      {/* REWARD BOX INTERACTION HINT */}
+      {isLocked && nearRewardBox && !isNearMiniGame && !isMiniGameActive && (
         <div className="interaction-hint">
-          {nearPortal.targetRoom === 'minigame4' && !isGameCleared ? (
-            <>
-              <div style={{ color: '#ff6b6b', marginBottom: '5px' }}>
-                🔒 Locked
-              </div>
-              <div style={{ fontSize: '14px', color: '#999' }}>
-                Play all minigames to unlock
-              </div>
-            </>
-          ) : (
-            `[E] ${nearPortal.label}`
-          )}
+          [E] Collect Reward Box
+        </div>
+      )}
+
+      {/* PORTAL INTERACTION HINT */}
+      {isLocked && nearPortal && !nearRewardBox && !isNearMiniGame && !isMiniGameActive && (
+        <div className="interaction-hint">
+          {nearPortal.targetRoom === 'minigame4' && (
+            (() => {
+              const hasAllBoxes = 
+                inventory.some(item => item.minigameId === 'minigame1') &&
+                inventory.some(item => item.minigameId === 'minigame2') &&
+                inventory.some(item => item.minigameId === 'minigame3');
+              
+              if (!hasAllBoxes) {
+                return (
+                  <>
+                    <div style={{ color: '#ff6b6b', marginBottom: '5px' }}>
+                      🔒 Locked
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#999' }}>
+                      Collect all 3 reward boxes to unlock
+                    </div>
+                  </>
+                );
+              }
+              return `[E] ${nearPortal.label}`;
+            })()
+          ) || `[E] ${nearPortal.label}`}
         </div>
       )}
 
@@ -524,7 +566,13 @@ export function UI() {
       {/* =====================================================================
          GAME CLEAR SCREEN (Empty Room)
       ===================================================================== */}
-      {currentRoom === 'minigame4' && isGameCleared && (
+      {currentRoom === 'minigame4' && (() => {
+        const hasAllBoxes = 
+          inventory.some(item => item.minigameId === 'minigame1') &&
+          inventory.some(item => item.minigameId === 'minigame2') &&
+          inventory.some(item => item.minigameId === 'minigame3');
+        return hasAllBoxes;
+      })() && (
         <div className="fullscreen-overlay">
           <div className="game-clear-screen">
             <h1>🎉 Game Clear! 🎉</h1>
