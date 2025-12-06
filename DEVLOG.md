@@ -21,3 +21,4 @@
 - **Inho**: Update new game with 3 diffrent minigames, deploy automation, implement basic save system, and add gameclear condition and fix UI.
 - **Jenalee**: F2 Devlog requirement satisfaction updates, light/dark mode theme adaptations, long refactoring and code sectioning, and save system with debug panel implemented.
 - **Inho**: add three different langues and new items.
+- **Jenalee**: Added F3 Devlog requirement summary.
