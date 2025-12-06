@@ -42,3 +42,20 @@ export interface PhysicsWorld {
   wallMaterial: CANNON.Material;
 }
 
+export interface SaveData {
+  id: string;
+  name: string;
+  timestamp: number;
+  currentRoom: RoomType;
+  money: number;
+  position: { x: number; y: number; z: number };
+  lastAutoSave: number;
+}
+
+export interface SaveSlot {
+  id: string;
+  name: string;
+  timestamp: number;
+}
+
+export type SaveMode = 'manual' | 'auto' | 'quick';

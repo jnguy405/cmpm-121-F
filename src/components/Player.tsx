@@ -136,26 +136,44 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
       const body = playerBody.current;
       if (!body) return;
 
-      // Save game (F5)
+      // Quick save (F5)
       if (e.code === 'F5') {
         e.preventDefault();
-        saveGame({
+        const position = {
           x: body.position.x,
           y: body.position.y,
           z: body.position.z,
-        });
+        };
+        saveGame(position, 'quick');
       }
 
-      // Load game (F9)
+      // Quick Load (F9)
       if (e.code === 'F9') {
         e.preventDefault();
-        loadGame();
+        const lastQuickSaveId = localStorage.getItem('mini3d_last_quicksave');
+        if (lastQuickSaveId) {
+          loadGame(lastQuickSaveId);
+        } else {
+          console.log('No quick save found');
+        }
+      }
+      
+      // Manual save (Ctrl+S)
+      if (e.ctrlKey && e.code === 'KeyS') {
+        e.preventDefault();
+        const position = {
+          x: body.position.x,
+          y: body.position.y,
+          z: body.position.z,
+        };
+        const saveName = prompt('Save name (optional):') || undefined;
+        saveGame(position, 'manual', saveName);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [playerBody, saveGame, loadGame]);
+  }, [playerBody, saveGame, loadGame]); 
 
   // ROOM TRANSITION HANDLER
   // --------------------------------------------------------------------------
@@ -303,5 +321,5 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
   });
 
   // RENDER
-  return null; // Player is invisible, controls camera and physics only
+  return null;
 }
