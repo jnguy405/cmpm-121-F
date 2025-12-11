@@ -4,6 +4,8 @@
 
 **An immersive 3D puzzle adventure game built with React, Three.js, and physics simulation which features persistent inventory, save states, dynamic theming, and multi-language support.**
 
+[Original Repository](https://github.com/JosephGonzalez1/cmpm-121-F)
+
 ---
 
 ## 🎯 Project Summary
@@ -72,7 +74,7 @@ The game reflects a professional-grade workflow with modular component design, t
 
 | Name | Role | Responsibilities |
 |------|------|------------------|
-| **Jenalee Nguyen** | **Tools Lead** | Project tooling, workflow setup (Vite, ESLint, Husky), asset pipeline, technical documentation, repo maintenance |
-| **Joseph Gonzalez** | **Engine Lead** | Core architecture, 3D/physics integration (Three.js + Cannon-es), performance optimization, type safety |
-| **William Gonzalez** | **Design Lead** | Gameplay design, level structure, puzzles, UI/UX concepts, game rules |
-| **Inho Yoo** | **Testing Lead** | Test strategy, QA process, bug tracking, reproducibility, end-to-end validation |
+| **[Jenalee Nguyen](https://github.com/jnguy405?tab=repositories)** | **Tools Lead** | Project tooling, workflow setup (Vite, ESLint, Husky), asset pipeline, technical documentation, repo maintenance |
+| **[Joseph Gonzalez](https://github.com/JosephGonzalez1)** | **Engine Lead** | Core architecture, 3D/physics integration (Three.js + Cannon-es), performance optimization, type safety |
+| **[William Gonzalez](https://github.com/wimgonza)** | **Design Lead** | Gameplay design, level structure, puzzles, UI/UX concepts, game rules |
+| **[Inho Yoo](https://github.com/inyoo403)** | **Testing Lead** | Test strategy, QA process, bug tracking, reproducibility, end-to-end validation |
